@@ -61,9 +61,10 @@
   <section id="results" class="results hidden" aria-live="polite"></section>
   <p class="foot">Prototype notice: results are basic automated signals, not a guarantee of SEO rankings, accessibility, security, or complete site health. No account or lead database is used in this starter.</p>
 </main>
+
 <script>
-  // Set this to your deployed Cloudflare Worker URL after deployment.
   const API_BASE = "https://sitecare-copilot-starter.vicdoce2020.workers.dev";
+
   const form = document.getElementById("scanForm");
   const input = document.getElementById("siteUrl");
   const button = document.getElementById("scanButton");
@@ -74,26 +75,35 @@
     event.preventDefault();
     results.classList.add("hidden");
     results.replaceChildren();
+
     const url = input.value.trim();
     if (!url) return;
-    if (API_BASE.includes("PASTE_YOUR")) {
-      status.textContent = "Setup needed: add your deployed Worker URL in index.html first.";
-      return;
-    }
+
     button.disabled = true;
     status.textContent = "Checking the public page…";
+
     try {
-      const response = await fetch(`${API_BASE.replace(/\/$/, "")}/scan`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url })
-      });
+      const response = await fetch(
+        `${API_BASE.replace(/\/$/, "")}/scan`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url })
+        }
+      );
+
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || `Scan failed (${response.status}).`);
+
+      if (!response.ok) {
+        throw new Error(data.error || `Scan failed (${response.status}).`);
+      }
+
       renderResults(data);
-      status.textContent = "Scan complete. Review each finding before acting on it.";
+      status.textContent =
+        "Scan complete. Review each finding before acting on it.";
     } catch (error) {
-      status.textContent = error.message || "Could not complete the scan. Please try again later.";
+      status.textContent =
+        error.message || "Could not complete the scan. Please try again later.";
     } finally {
       button.disabled = false;
     }
@@ -102,27 +112,94 @@
   function renderResults(data) {
     const metrics = document.createElement("div");
     metrics.className = "summary";
+
     const metricValues = [
       ["HTTP status", data.httpStatus ?? "—"],
-      ["Response time", data.responseTimeMs == null ? "—" : `${data.responseTimeMs} ms`],
-      ["Page size checked", data.bytesRead == null ? "—" : `${Math.round(data.bytesRead / 1024)} KB`]
+      [
+        "Response time",
+        data.responseTimeMs == null ? "—" : `${data.responseTimeMs} ms`
+      ]
     ];
+
     for (const [label, value] of metricValues) {
       const box = document.createElement("div");
       box.className = "metric";
-      const caption = document.createElement("span"); caption.textContent = label;
-      const strong = document.createElement("strong"); strong.textContent = value;
-      box.append(caption, strong); metrics.append(box);
+
+      const caption = document.createElement("span");
+      caption.textContent = label;
+
+      const strong = document.createElement("strong");
+      strong.textContent = value;
+
+      box.append(caption, strong);
+      metrics.append(box);
     }
+
     results.append(metrics);
-    for (const finding of (data.findings || [])) {
-      const row = document.createElement("article"); row.className = "item";
-      const dot = document.createElement("div"); dot.className = `dot ${finding.level || ""}`;
-      const body = document.createElement("div");
-      const title = document.createElement("h3"); title.textContent = finding.title || "Finding";
-      const detail = document.createElement("p"); detail.textContent = finding.detail || "";
-      body.append(title, detail); row.append(dot, body); results.append(row);
+
+    if (data.url) {
+      const scannedUrl = document.createElement("p");
+      scannedUrl.className = "scan-url";
+      scannedUrl.textContent = `Scanned website: ${data.url}`;
+      results.append(scannedUrl);
     }
+
+    const heading = document.createElement("h2");
+    heading.textContent = "SEO Checks";
+    results.append(heading);
+
+    const checks = Array.isArray(data.checks) ? data.checks : [];
+
+    if (checks.length === 0) {
+      const message = document.createElement("p");
+      message.textContent =
+        "No SEO checks were returned. Please try scanning again.";
+      results.append(message);
+    }
+
+    for (const check of checks) {
+      const row = document.createElement("article");
+      row.className = "item";
+
+      const level =
+        check.status === "pass"
+          ? "pass"
+          : check.status === "fail"
+            ? "fail"
+            : "warning";
+
+      const dot = document.createElement("div");
+      dot.className = `dot ${level}`;
+
+      const body = document.createElement("div");
+
+      const title = document.createElement("h3");
+      title.textContent = check.name || "SEO check";
+
+      const detail = document.createElement("p");
+      detail.textContent = check.message || "";
+
+      const badge = document.createElement("span");
+      badge.className = `check-status ${level}`;
+      badge.textContent =
+        level === "pass"
+          ? "PASS"
+          : level === "fail"
+            ? "NEEDS ATTENTION"
+            : "REVIEW";
+
+      body.append(title, badge, detail);
+      row.append(dot, body);
+      results.append(row);
+    }
+
+    if (data.note) {
+      const note = document.createElement("p");
+      note.className = "scan-note";
+      note.textContent = data.note;
+      results.append(note);
+    }
+
     results.classList.remove("hidden");
   }
 </script>
