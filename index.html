@@ -37,6 +37,120 @@
     .item p { margin:0; color:var(--muted); line-height:1.5; overflow-wrap:anywhere; }
     .foot { margin-top:24px; color:var(--muted); font-size:.82rem; line-height:1.55; }
     .hidden { display:none; }
+    
+/* SiteCare Copilot SEO score */
+.seo-score-card {
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #111827;
+}
+
+.seo-score-card h2 {
+  margin-top: 0;
+}
+
+.seo-score-value {
+  font-size: 36px;
+  font-weight: 700;
+  margin: 8px 0;
+}
+
+.score-good .seo-score-value {
+  color: #15803d;
+}
+
+.score-medium .seo-score-value {
+  color: #a16207;
+}
+
+.score-low .seo-score-value {
+  color: #b91c1c;
+}
+
+.seo-score-track {
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 14px;
+}
+
+.seo-score-fill {
+  height: 100%;
+  background: #15803d;
+  transition: width 0.3s ease;
+}
+
+.score-medium .seo-score-fill {
+  background: #ca8a04;
+}
+
+.score-low .seo-score-fill {
+  background: #dc2626;
+}
+
+.check-status {
+  display: inline-block;
+  margin: 4px 0 8px;
+  padding: 4px 9px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.check-status.pass {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.check-status.warning {
+  color: #854d0e;
+  background: #fef3c7;
+}
+
+.check-status.fail {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.seo-recommendation {
+  margin-top: 10px;
+  padding: 10px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+.seo-check {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.seo-check .dot {
+  flex-shrink: 0;
+}
+
+.seo-check .dot.pass {
+  background: #16a34a;
+}
+
+.seo-check .dot.warning {
+  background: #eab308;
+}
+
+.seo-check .dot.fail {
+  background: #dc2626;
+}
+
+.scan-url,
+.scan-note {
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
     @media (max-width:640px) { .formrow { flex-direction:column; } .summary { grid-template-columns:1fr; } main { padding-top:28px; } }
   </style>
 </head>
@@ -61,7 +175,9 @@
   <section id="results" class="results hidden" aria-live="polite"></section>
   <p class="foot">Prototype notice: results are basic automated signals, not a guarantee of SEO rankings, accessibility, security, or complete site health. No account or lead database is used in this starter.</p>
 </main>
-
+/***
+  Basic report
+  ***/
 <script>
   const API_BASE = "https://sitecare-copilot-starter.vicdoce2020.workers.dev";
 
@@ -203,5 +319,172 @@
     results.classList.remove("hidden");
   }
 </script>
+
+  /***
+  SiteCare Copilot's SEO report
+  ***/
+  <script>
+    
+function renderResults(data) {
+  const metrics = document.createElement("div");
+  metrics.className = "summary";
+
+  const metricValues = [
+    ["HTTP status", data.httpStatus ?? "—"],
+    [
+      "Response time",
+      data.responseTimeMs == null ? "—" : `${data.responseTimeMs} ms`
+    ]
+  ];
+
+  for (const [label, value] of metricValues) {
+    const box = document.createElement("div");
+    box.className = "metric";
+
+    const caption = document.createElement("span");
+    caption.textContent = label;
+
+    const strong = document.createElement("strong");
+    strong.textContent = value;
+
+    box.append(caption, strong);
+    metrics.append(box);
+  }
+
+  results.append(metrics);
+
+  if (data.url) {
+    const scannedUrl = document.createElement("p");
+    scannedUrl.className = "scan-url";
+    scannedUrl.textContent = `Scanned website: ${data.url}`;
+    results.append(scannedUrl);
+  }
+
+  const checks = Array.isArray(data.checks) ? data.checks : [];
+
+  const points = checks.reduce((total, check) => {
+    if (check.status === "pass") return total + 1;
+    if (check.status === "warning") return total + 0.5;
+    return total;
+  }, 0);
+
+  const score = checks.length
+    ? Math.round((points / checks.length) * 100)
+    : 0;
+
+  const scoreClass =
+    score >= 80 ? "score-good" :
+    score >= 50 ? "score-medium" : "score-low";
+
+  const scoreCard = document.createElement("section");
+  scoreCard.className = `seo-score-card ${scoreClass}`;
+
+  const scoreHeading = document.createElement("h2");
+  scoreHeading.textContent = "Basic SEO Health Score";
+
+  const scoreValue = document.createElement("div");
+  scoreValue.className = "seo-score-value";
+  scoreValue.textContent = checks.length ? `${score}/100` : "N/A";
+
+  const scoreDescription = document.createElement("p");
+  scoreDescription.textContent = checks.length
+    ? `${checks.filter(c => c.status === "pass").length} of ${checks.length} checks passed. Warnings receive half credit.`
+    : "No checks were returned. Please try again.";
+
+  const progress = document.createElement("div");
+  progress.className = "seo-score-track";
+  progress.setAttribute("role", "progressbar");
+  progress.setAttribute("aria-label", "Basic SEO health score");
+  progress.setAttribute("aria-valuemin", "0");
+  progress.setAttribute("aria-valuemax", "100");
+  progress.setAttribute("aria-valuenow", String(score));
+
+  const fill = document.createElement("div");
+  fill.className = "seo-score-fill";
+  fill.style.width = `${score}%`;
+
+  progress.append(fill);
+  scoreCard.append(scoreHeading, scoreValue, scoreDescription, progress);
+  results.append(scoreCard);
+
+  const recommendations = {
+    "Page title":
+      "Add a unique, descriptive title that clearly explains this page.",
+    "Meta description":
+      "Write a concise, relevant description that summarizes the page for searchers.",
+    "H1 heading":
+      "Review the main heading. Use one clear H1 that describes the page's primary topic.",
+    "Mobile viewport":
+      "Add a viewport meta tag so the page can adapt to mobile screen sizes.",
+    "HTML language":
+      'Add the correct language attribute to the HTML element, such as lang="en" for English.',
+    "Canonical URL":
+      "Review whether this page needs a canonical link pointing to its preferred URL."
+  };
+
+  const heading = document.createElement("h2");
+  heading.textContent = "SEO Checks";
+  results.append(heading);
+
+  if (!checks.length) {
+    const message = document.createElement("p");
+    message.textContent = "No SEO checks were returned.";
+    results.append(message);
+  }
+
+  for (const check of checks) {
+    const row = document.createElement("article");
+    const level = ["pass", "warning", "fail"].includes(check.status)
+      ? check.status
+      : "warning";
+
+    row.className = `item seo-check ${level}`;
+
+    const dot = document.createElement("div");
+    dot.className = `dot ${level}`;
+    dot.setAttribute("aria-hidden", "true");
+
+    const body = document.createElement("div");
+
+    const title = document.createElement("h3");
+    title.textContent = check.name || "SEO check";
+
+    const badge = document.createElement("span");
+    badge.className = `check-status ${level}`;
+    badge.textContent =
+      level === "pass" ? "PASS" :
+      level === "fail" ? "NEEDS ATTENTION" : "REVIEW";
+
+    const detail = document.createElement("p");
+    detail.textContent = check.message || "";
+
+    const recommendation = document.createElement("p");
+    recommendation.className = "seo-recommendation";
+
+    if (level === "pass") {
+      recommendation.textContent =
+        "Recommendation: This check passed. Keep monitoring it.";
+    } else {
+      recommendation.textContent =
+        "Recommended action: " +
+        (recommendations[check.name] ||
+          "Review this item and correct any issues found.");
+    }
+
+    body.append(title, badge, detail, recommendation);
+    row.append(dot, body);
+    results.append(row);
+  }
+
+  if (data.note) {
+    const note = document.createElement("p");
+    note.className = "scan-note";
+    note.textContent = data.note;
+    results.append(note);
+  }
+
+  results.classList.remove("hidden");
+}
+  </script>
 </body>
 </html>
